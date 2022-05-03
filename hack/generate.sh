@@ -20,18 +20,18 @@ fi
 
 function generate_go_client() {
     rm -rf client models
-    "${CONTAINER_RUNTIME}" run "${CONTAINER_RUNTIME_OPTS}" -u $(id -u):$(id -u) -v ${__root}:${__root}:rw,Z -v /etc/passwd:/etc/passwd -w ${__root} \
+    "${CONTAINER_RUNTIME}" run ${CONTAINER_RUNTIME_OPTS} -u $(id -u):$(id -u) -v ${__root}:${__root}:rw,Z -v /etc/passwd:/etc/passwd -w ${__root} \
         quay.io/goswagger/swagger:v0.25.0 generate client -f swagger.yaml --template=stratoscale
 }
 
 function generate_go_server() {
     rm -rf restapi
-    "${CONTAINER_RUNTIME}" run "${CONTAINER_RUNTIME_OPTS}" -u $(id -u):$(id -u) -v ${__root}:${__root}:rw,Z -v /etc/passwd:/etc/passwd -w ${__root} \
+    "${CONTAINER_RUNTIME}" run ${CONTAINER_RUNTIME_OPTS} -u $(id -u):$(id -u) -v ${__root}:${__root}:rw,Z -v /etc/passwd:/etc/passwd -w ${__root} \
         quay.io/goswagger/swagger:v0.25.0 generate server  -f ${__root}/swagger.yaml --template=stratoscale
 }
 
 function generate_docs() {
-    "${CONTAINER_RUNTIME}" run "${CONTAINER_RUNTIME_OPTS}" -u $(id -u):$(id -u) -v ${__root}:${__root}:rw,Z -v /etc/passwd:/etc/passwd -w ${__root} \
+    "${CONTAINER_RUNTIME}" run ${CONTAINER_RUNTIME_OPTS} -u $(id -u):$(id -u) -v ${__root}:${__root}:rw,Z -v /etc/passwd:/etc/passwd -w ${__root} \
         quay.io/goswagger/swagger:v0.27.0 generate markdown  -f ${__root}/swagger.yaml --template=stratoscale --output=docs/design/http-api-swagger.md
 }
 

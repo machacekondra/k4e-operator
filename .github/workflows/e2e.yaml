@@ -1,0 +1,61 @@
+---
+name: "e2e"
+on:  # yamllint disable-line rule:truthy
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image:
+        description: 'Custom edgedevice testing image'
+        default: 'quay.io/project-flotta/edgedevice:latest'
+        required: true
+
+jobs:
+  docker:
+    name: E2e tests on fedora
+    runs-on: macos-10.15
+    env:
+      HELPER: "./hack/ci/vagrant-helper.sh"
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Create fedora VM
+        run: |
+          ln -sf ./hack/ci/Vagrantfile ./Vagrantfile
+          vagrant up
+
+      - name: Create a cluster
+        run: |
+          "$HELPER" kind create cluster -v7 --wait 1m --retain
+
+      - name: Get Cluster status
+        run: |
+          "$HELPER" docker info
+          "$HELPER" docker version
+          "$HELPER" kubectl cluster-info
+          "$HELPER" kubectl wait --for=condition=ready pods --namespace=kube-system -l k8s-app=kube-dns
+          "$HELPER" kubectl get nodes -o wide
+          "$HELPER" kubectl get pods -A
+
+      - name: e2e tests
+        run: |
+          "$HELPER" bash -c /vagrant/hack/ci/e2e.sh /vagrant
+
+      # collect logs always just in case the test fails
+      - name: Collect all logs
+        if: always()
+        run: |
+          # Just dump the secrets to debug later
+          "$HELPER" kubectl get secrets -n flotta -o json
+          "$HELPER" kind export logs dist
+
+      - name: Archive logs
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: logs
+          path: |
+            dist
