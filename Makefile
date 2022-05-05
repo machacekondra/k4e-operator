@@ -133,10 +133,10 @@ vendor:
 	go mod vendor
 
 get-certs: # Write certificates to /tmp/ folder
-	kubectl get secret -n flotta flotta-ca  -o json | jq '.data."ca.crt"| @base64d' -r >/tmp/ca.pem
-	$(eval REG_SECRET_NAME := $(shell kubectl get secrets -n flotta -l reg-client-ca=true --sort-by=.metadata.creationTimestamp | tail -1 | awk '{print $$1}'))
-	kubectl -n flotta get secret $(REG_SECRET_NAME) -o json | jq -r '.data."client.crt"| @base64d' > /tmp/cert.pem
-	kubectl -n flotta get secret $(REG_SECRET_NAME) -o json | jq -r '.data."client.key"| @base64d' > /tmp/key.pem
+	$(KUBECTL) get secret -n flotta flotta-ca  -o json | jq '.data."ca.crt"| @base64d' -r >/tmp/ca.pem
+	$(eval REG_SECRET_NAME := $(shell ${KUBECTL} get secrets -n flotta -l reg-client-ca=true --sort-by=.metadata.creationTimestamp | tail -1 | awk '{print $$1}'))
+	$(KUBECTL) -n flotta get secret $(REG_SECRET_NAME) -o json | jq -r '.data."client.crt"| @base64d' > /tmp/cert.pem
+	$(KUBECTL) -n flotta get secret $(REG_SECRET_NAME) -o json | jq -r '.data."client.key"| @base64d' > /tmp/key.pem
 
 check-certs: # Check cert subject
 	openssl x509 -noout -in /tmp/cert.pem --subject
@@ -149,7 +149,7 @@ fast-build: generate fmt vet ## Fast build manager binary for local dev.
 	go build -mod=vendor -o bin/manager main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
-	$(Q) kubectl create ns $(FLOTTA_OPERATOR_NAMESPACE) 2> /dev/null || exit 0
+	$(Q) $(KUBECTL) create ns $(FLOTTA_OPERATOR_NAMESPACE) 2> /dev/null || exit 0
 	OBC_AUTO_CREATE=false ENABLE_WEBHOOKS=false LOG_LEVEL=debug go run -mod=vendor ./main.go
 
 docker-build: ## Build docker image with the manager.
@@ -161,28 +161,28 @@ docker-push: ## Push docker image with the manager.
 ##@ Deployment
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
 
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl delete -f -
+	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete -f -
 
 deploy: gen-manifests ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.7.1/cert-manager.yaml
-	kubectl wait --for=condition=Ready pods --all -n cert-manager --timeout=60s
-	kubectl apply -f $(TMP_ODIR)/$(TARGET)-flotta-operator.yaml
+	$(KUBECTL) apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.7.1/cert-manager.yaml
+	$(KUBECTL) wait --for=condition=Ready pods --all -n cert-manager --timeout=60s
+	$(KUBECTL) apply -f $(TMP_ODIR)/$(TARGET)-flotta-operator.yaml
 ifeq ($(TARGET), k8s)
 	minikube addons enable ingress
 endif
 
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 ifeq ($(TARGET), k8s)
-	$(KUSTOMIZE) build config/k8s | kubectl delete -f -
+	$(KUSTOMIZE) build config/k8s | $(KUBECTL) delete -f -
 else ifeq ($(TARGET), ocp)
-	$(KUSTOMIZE) build config/ocp | kubectl delete -f -
+	$(KUSTOMIZE) build config/ocp | $(KUBECTL) delete -f -
 else ifeq ($(TARGET), kind)
-	$(KUSTOMIZE) build config/kind | kubectl delete -f -
+	$(KUSTOMIZE) build config/kind | $(KUBECTL) delete -f -
 endif
-	kubectl delete -f https://github.com/cert-manager/cert-manager/releases/download/v1.7.1/cert-manager.yaml
+	$(KUBECTL) delete -f https://github.com/cert-manager/cert-manager/releases/download/v1.7.1/cert-manager.yaml
 
 $(eval TMP_ODIR := $(shell mktemp -d))
 gen-manifests: manifests kustomize ## Generates manifests for deploying the operator into $(TARGET)-flotta-operator.yaml
