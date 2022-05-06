@@ -30,7 +30,7 @@ jobs:
 
       - name: Testing on KinD
         env:
-          TOKEN: ${{ secrets.TOKEN }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Print cluster info
           kubectl cluster-info
@@ -50,16 +50,18 @@ jobs:
           kubectl wait --timeout=120s --for=condition=Ready pods --all -n flotta
 
           # Use custom image:
+          TEST_SKIP_PULL=false
           if [[ -n "${{ github.event.inputs.artifactid }}" ]]; then
-            curl -o /tmp/edgedevice.zip -H "Authorization: Bearer ${TOKEN}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-flotta/flotta-device-worker/actions/artifacts/${{ github.event.inputs.artifactid }}/zip
+            curl -v -L -o /tmp/edgedevice.zip -H "Authorization: Bearer ${TOKEN}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-flotta/flotta-device-worker/actions/artifacts/${{ github.event.inputs.artifactid }}/zip
             pushd /tmp && unzip /tmp/edgedevice.zip && popd
             docker import /tmp/edgedevice customedgedevice
             kind load docker-image customedgedevice
             INPUT_IMAGE=customedgedevice
+            TEST_SKIP_PULL=true
           fi
 
           # Run test
-          TEST_IMAGE="${INPUT_IMAGE:-quay.io/project-flotta/edgedevice:latest}" make integration-test
+          TEST_SKIP_PULL=$(TEST_SKIP_PULL) TEST_IMAGE="${INPUT_IMAGE:-quay.io/project-flotta/edgedevice:latest}" make integration-test
 
       # collect logs always just in case the test fails
       - name: Collect all logs
