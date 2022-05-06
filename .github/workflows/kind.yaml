@@ -52,6 +52,7 @@ jobs:
           # Use custom image:
           if [[ -n "${{ github.event.inputs.artifactid }}" ]]; then
             curl -o /tmp/edgedevice.zip -H  "Authorization: Bearer ${TOKEN}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-flotta/flotta-device-worker/actions/artifacts/${{ github.event.inputs.artifactid }}/zip
+
             pushd /tmp && unzip /tmp/edgedevice.zip && popd
             docker import /tmp/edgedevice customedgedevice
             kind load docker-image customedgedevice
